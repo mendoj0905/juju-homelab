@@ -1,0 +1,5 @@
+# Don't commit sensitive information
+.vault_pass
+*.retry
+secrets.yml
+.ansible/

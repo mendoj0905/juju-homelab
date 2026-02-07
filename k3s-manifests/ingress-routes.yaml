@@ -1,0 +1,160 @@
+---
+# Open-WebUI Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openwebui
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: openwebui.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openwebui
+                port:
+                  number: 80
+
+---
+# Paperless Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: paperless.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless
+                port:
+                  number: 80
+
+---
+# Paperless-AI Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-ai
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: paperless-ai.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-ai
+                port:
+                  number: 80
+
+---
+# Paperless-GPT Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-gpt
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: paperless-gpt.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-gpt
+                port:
+                  number: 80
+
+---
+# Ollama Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ollama
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: ollama.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ollama
+                port:
+                  number: 80
+
+---
+# Open Notebook Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: open-notebook
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: notebook.justinmendoza.net
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: open-notebook
+                port:
+                  number: 5055
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: open-notebook
+                port:
+                  number: 80
+
+---
+# Dozzle Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dozzle
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: dozzle.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dozzle
+                port:
+                  number: 80

@@ -1,0 +1,218 @@
+---
+- name: Baseline config on all Pis (hostname, updates, disable wifi)
+  hosts: pis
+  gather_facts: true
+  become: true
+
+  vars:
+    # If your netplan file name differs, we’ll autodetect
+    # This removes Wi-Fi config and ensures eth0 uses DHCP.
+    keep_eth0_dhcp: true
+
+  tasks:
+    - name: Set hostname to inventory name
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Ensure basic packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - python3
+          - python3-yaml
+        update_cache: true
+        state: present
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: true
+
+    - name: Find netplan yaml files
+      ansible.builtin.find:
+        paths: /etc/netplan
+        patterns: "*.yaml"
+      register: netplan_files
+
+    - name: Fail if no netplan config found
+      ansible.builtin.fail:
+        msg: "No netplan yaml found in /etc/netplan"
+      when: netplan_files.matched == 0
+
+    - name: Backup first netplan file
+      ansible.builtin.copy:
+        src: "{{ netplan_files.files[0].path }}"
+        dest: "{{ netplan_files.files[0].path }}.bak"
+        remote_src: true
+      when: netplan_files.matched > 0
+
+    - name: Read current netplan
+      ansible.builtin.slurp:
+        src: "{{ netplan_files.files[0].path }}"
+      register: netplan_raw
+
+    - name: Parse netplan YAML
+      ansible.builtin.set_fact:
+        netplan_obj: "{{ netplan_raw.content | b64decode | from_yaml }}"
+
+    - name: Remove Wi-Fi section and ensure eth0 dhcp4=true
+      ansible.builtin.set_fact:
+        netplan_obj: >-
+          {{
+            netplan_obj | combine(
+              {
+                'network': (
+                  (netplan_obj.network | default({}))
+                  | combine({'wifis': omit}, recursive=True)
+                  | combine(
+                      {
+                        'ethernets': (
+                          (netplan_obj.network.ethernets | default({}))
+                          | combine({'eth0': ((netplan_obj.network.ethernets.eth0 | default({})) | combine({'dhcp4': true, 'nameservers': {'addresses': ['8.8.8.8', '8.8.4.4']}}))}, recursive=True)
+                        )
+                      },
+                      recursive=True
+                    )
+                )
+              },
+              recursive=True
+            )
+          }}
+
+    - name: Write updated netplan back
+      ansible.builtin.copy:
+        dest: "{{ netplan_files.files[0].path }}"
+        content: "{{ netplan_obj | to_nice_yaml(indent=2) }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Apply netplan
+      ansible.builtin.command: netplan apply
+      changed_when: true
+
+    - name: Enable memory cgroups for k3s (critical for Raspberry Pi)
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(.*)(\s+)$'
+        line: '\1 cgroup_memory=1 cgroup_enable=memory\2'
+        backrefs: true
+      register: cgroup_result
+
+    - name: Configure POE+ fan thresholds (reduce noise)
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        block: |
+          # POE+ HAT fan control
+          poe_fan_temp0=50000
+          poe_fan_temp0_hyst=2000
+          poe_fan_temp1=60000
+          poe_fan_temp1_hyst=2000
+          poe_fan_temp2=70000
+          poe_fan_temp2_hyst=2000
+          poe_fan_temp3=80000
+          poe_fan_temp3_hyst=5000
+        marker: "# {mark} ANSIBLE MANAGED POE FAN CONFIG"
+
+    - name: Reboot to ensure hostname/network/cgroups are consistent
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+
+    - name: Wait for network to be fully up
+      ansible.builtin.wait_for:
+        host: 8.8.8.8
+        port: 53
+        timeout: 60
+        state: started
+
+    - name: Test DNS resolution
+      ansible.builtin.command: nslookup get.k3s.io
+      register: dns_test
+      retries: 10
+      delay: 5
+      until: dns_test.rc == 0
+      changed_when: false
+
+- name: Install k3s server on control-plane
+  hosts: k3s_server
+  gather_facts: false
+  become: true
+
+  vars:
+    k3s_install_flags: "--write-kubeconfig-mode 644 --disable servicelb"
+
+  tasks:
+    - name: Install k3s server
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - {{ k3s_install_flags }}
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for kubectl to work
+      ansible.builtin.shell: |
+        k3s kubectl get nodes
+      register: k3s_nodes
+      retries: 20
+      delay: 3
+      until: k3s_nodes.rc == 0
+
+    - name: Read k3s node token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: token_raw
+
+    - name: Set token fact for other plays
+      ansible.builtin.set_fact:
+        k3s_token: "{{ token_raw.content | b64decode | trim }}"
+
+    - name: Fetch kubeconfig to local machine
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ~/.kube/k3s-config
+        flat: true
+
+    - name: Update kubeconfig server address
+      ansible.builtin.replace:
+        path: ~/.kube/k3s-config
+        regexp: 'https://127\.0\.0\.1:6443'
+        replace: 'https://{{ ansible_host }}:6443'
+      delegate_to: localhost
+      become: false
+
+- name: Install k3s agents and join cluster
+  hosts: k3s_agents
+  gather_facts: false
+  become: true
+
+  vars:
+    k3s_server_ip: "{{ hostvars['k3s-cp-01'].ansible_host }}"
+    k3s_token: "{{ hostvars['k3s-cp-01'].k3s_token }}"
+
+  tasks:
+    - name: Install k3s agent and join
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://{{ k3s_server_ip }}:6443 K3S_TOKEN={{ k3s_token }} sh -
+      args:
+        creates: /usr/local/bin/k3s-agent
+
+- name: Post-check cluster and optionally taint control-plane
+  hosts: k3s_server
+  gather_facts: false
+  become: true
+
+  vars:
+    taint_control_plane: true
+
+  tasks:
+    - name: Show nodes
+      ansible.builtin.shell: |
+        k3s kubectl get nodes -o wide
+      register: nodes_out
+    - ansible.builtin.debug:
+        var: nodes_out.stdout_lines
+
+    - name: Taint control-plane to avoid scheduling workloads there (optional)
+      ansible.builtin.shell: |
+        k3s kubectl taint nodes k3s-cp-01 node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
+      when: taint_control_plane

@@ -1,0 +1,56 @@
+---
+# Namespace for cert-manager
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+
+---
+# Cloudflare API Token Secret
+# You'll need to update this with your actual Cloudflare API token
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  api-token: "YOUR_CLOUDFLARE_API_TOKEN_HERE"
+
+---
+# ClusterIssuer for Let's Encrypt (staging - for testing)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: your-email@example.com # Update with your email
+    privateKeySecretRef:
+      name: letsencrypt-staging-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+
+---
+# ClusterIssuer for Let's Encrypt (production - use after testing)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com # Update with your email
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token

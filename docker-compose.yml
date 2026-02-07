@@ -1,0 +1,215 @@
+services:
+  # ---------------------------
+  # LLM runtime (GPU PC)
+  # ---------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - /mnt/synology/ai/ollama:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+
+  # ---------------------------
+  # Chat UI dependencies
+  # ---------------------------
+  openwebui-db:
+    image: postgres:16
+    container_name: openwebui-db
+    environment:
+      - POSTGRES_DB=openwebui
+      - POSTGRES_USER=openwebui
+      - POSTGRES_PASSWORD=openwebui
+    volumes:
+      - /mnt/synology/ai/openwebui-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+
+  # ---------------------------
+  # Chat UI
+  # ---------------------------
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_URL=postgresql://openwebui:openwebui@openwebui-db:5432/openwebui
+      - WEBUI_URL=http://openwebui.justinmendoza.net
+    volumes:
+      - /mnt/synology/ai/openwebui:/app/backend/data
+    depends_on:
+      - ollama
+      - openwebui-db
+    restart: unless-stopped
+    
+
+  # ---------------------------
+  # Paperless-ngx dependencies
+  # ---------------------------
+  paperless-db:
+    image: postgres:16
+    container_name: paperless-db
+    environment:
+      - POSTGRES_DB=paperless
+      - POSTGRES_USER=paperless
+      - POSTGRES_PASSWORD=paperless
+    volumes:
+      - /mnt/synology/paperless/db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  paperless-redis:
+    image: redis:7
+    container_name: paperless-redis
+    restart: unless-stopped
+
+  # gotenberg service that paperless uses for document conversion
+  gotenberg:
+    image: docker.io/gotenberg/gotenberg:8.25
+    container_name: gotenberg
+    env_file: 
+      - ./gotenberg/.env
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+  
+  # tika service that paperless uses for document text extraction
+  tika:
+    image: docker.io/apache/tika:latest
+    container_name: tika
+    restart: unless-stopped
+    env_file: ./tika/.env
+
+  # ---------------------------
+  # Paperless-ngx
+  # ---------------------------
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless
+    depends_on:
+      - paperless-db
+      - paperless-redis
+    ports:
+      - "8001:8000"
+    environment:
+      - PAPERLESS_REDIS=redis://paperless-redis:6379
+      - PAPERLESS_DBHOST=paperless-db
+      - PAPERLESS_DBNAME=paperless
+      - PAPERLESS_DBUSER=paperless
+      - PAPERLESS_DBPASS=paperless
+      - PAPERLESS_TIME_ZONE=America/New_York
+      - PAPERLESS_URL=https://paperless.justinmendoza.net
+      - PAPERLESS_CSRF_TRUSTED_ORIGINS=https://paperless.justinmendoza.net
+      # Optional: reduces surprises with file permissions on mounted shares
+      - USERMAP_UID=1000
+      - USERMAP_GID=1000
+    volumes:
+      - /mnt/synology/paperless/data:/usr/src/paperless/data
+      - /mnt/synology/paperless/media:/usr/src/paperless/media
+      - /mnt/synology/paperless/export:/usr/src/paperless/export
+      - /mnt/synology/paperless/consume:/usr/src/paperless/consume
+    restart: unless-stopped
+
+  # ---------------------------
+  # Paperless-GPT
+  # ---------------------------
+  paperless-gpt:
+    image: ghcr.io/icereed/paperless-gpt:latest
+    container_name: paperless-gpt
+    ports:
+      - "8003:8080"
+    env_file: 
+      - ./paperless-gpt/.env
+    volumes:
+      - ./paperless-gpt/prompts:/app/prompts
+    depends_on:
+      - paperless
+      - ollama
+    restart: unless-stopped
+
+  # ---------------------------
+  # Paperless-AI
+  # ---------------------------
+  paperless-ai:
+    image: ghcr.io/clusterzx/paperless-ai:latest
+    container_name: paperless-ai
+    ports:
+      - "8002:3000"
+    environment:
+      - VECTOR_DB_PATH=/data/vectors
+    env_file:
+      - ./paperless-ai/.env
+    volumes:
+      - /mnt/synology/ai/vectors:/data/vectors
+      - ./paperless-ai/data:/app/.data
+    depends_on:
+      - paperless
+      - ollama
+    restart: unless-stopped
+
+  # ---------------------------
+  # Open Notebook Database
+  # ---------------------------
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    container_name: surrealdb
+    command: start --user root --pass password --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./surrealdb/data:/mydata
+    restart: unless-stopped
+
+  # ---------------------------
+  # Open Notebook
+  # Research assistant with RAG
+  # ---------------------------
+  open-notebook:
+    image: lfnovo/open_notebook:v1-latest-single
+    container_name: open-notebook
+    pull_policy: always
+    ports:
+      - "8502:8502"  # Web UI
+      - "5055:5055"  # API
+    environment:
+      - OLLAMA_API_BASE=http://ollama:11434
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=password
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=open_notebook
+      - API_URL=http://localhost:5055
+    volumes:
+      - ./open-notebook/data:/app/data
+    depends_on:
+      - surrealdb
+      - ollama
+    restart: unless-stopped
+
+  # optional but helpful log viewer
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    container_name: dozzle
+    env_file: 
+      - ./dozzle/.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dozzle/data:/data
+    ports:
+      - "8080:8080"

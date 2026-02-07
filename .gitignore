@@ -1,0 +1,55 @@
+# Environment files with secrets
+**/.env
+.env
+*.env
+!*.env.example
+
+# Ansible sensitive files
+**/.vault_pass
+**/secrets.yml
+**/*.retry
+**/.ansible/
+
+# Data directories (contain user data, databases, generated files)
+**/data/
+**/consume/
+**/export/
+**/media/
+**/models/
+
+# Kubernetes config files (may contain cluster credentials)
+**/.kube/
+**/k3s-config
+kubeconfig*
+
+# Logs and temporary files
+**/*.log
+*.log
+**/.cache/
+**/tmp/
+**/__pycache__/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# SQLite databases
+**/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
+**/*.db
+
+# Uploads and user-generated content
+**/uploads/
+**/tiktoken-cache/
+
+# NFS mounts
+/mnt/
+
+# Docker volumes (if accidentally created locally)
+volumes/

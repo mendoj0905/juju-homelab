@@ -1,0 +1,263 @@
+---
+# Configure NFS client on all Pis and deploy NFS provisioner to K3s
+# This enables K3s workloads to use Synology NAS storage
+#
+# PREREQUISITES:
+# 1. Enable NFS on Synology (Control Panel > File Services > NFS)
+# 2. Create shared folder: /volume2/k3s
+# 3. Add NFS permission for your Pi subnet (e.g., 192.168.68.0/24)
+#
+# VARIABLES TO CUSTOMIZE:
+# - nfs_server: Your Synology NAS IP
+# - nfs_path: NFS export path on Synology
+
+- name: Install NFS client packages on all Pis
+  hosts: pis
+  gather_facts: false
+  become: true
+
+  vars:
+    # CUSTOMIZE THESE VALUES FOR YOUR ENVIRONMENT
+    nfs_server: "192.168.1.100"  # Your Synology NAS IP
+    nfs_path: "/volume2/k3s"     # NFS export path on Synology
+
+  tasks:
+    - name: Install NFS client utilities
+      ansible.builtin.apt:
+        name:
+          - nfs-common
+          - nfs-kernel-server  # Provides rpcbind
+        state: present
+        update_cache: true
+
+    - name: Ensure rpcbind service is enabled and started
+      ansible.builtin.systemd:
+        name: rpcbind
+        enabled: true
+        state: started
+
+    - name: Test NFS mount capability (showmount)
+      ansible.builtin.command: showmount -e {{ nfs_server }}
+      register: showmount_result
+      changed_when: false
+      failed_when: false
+
+    - name: Display NFS exports
+      ansible.builtin.debug:
+        msg: "{{ showmount_result.stdout_lines }}"
+      when: showmount_result.rc == 0
+
+    - name: Warn if showmount failed
+      ansible.builtin.debug:
+        msg: "WARNING: Could not connect to NFS server {{ nfs_server }}. Verify NFS is enabled on Synology and firewall allows connections."
+      when: showmount_result.rc != 0
+
+- name: Deploy NFS provisioner to K3s cluster
+  hosts: k3s_server
+  gather_facts: false
+  become: false
+
+  vars:
+    # CUSTOMIZE THESE VALUES FOR YOUR ENVIRONMENT
+    nfs_server: "192.168.1.100"  # Your Synology NAS IP
+    nfs_path: "/volume2/k3s"     # NFS export path on Synology
+    nfs_storage_class: "nfs-synology"
+    nfs_provisioner_name: "nfs-synology"
+
+  tasks:
+    - name: Create nfs-provisioner manifests directory
+      ansible.builtin.file:
+        path: ~/k3s-nfs-provisioner
+        state: directory
+        mode: '0755'
+
+    - name: Create NFS provisioner namespace
+      ansible.builtin.copy:
+        dest: ~/k3s-nfs-provisioner/namespace.yaml
+        content: |
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: nfs-provisioner
+            labels:
+              app: nfs-provisioner
+        mode: '0644'
+
+    - name: Create RBAC resources
+      ansible.builtin.copy:
+        dest: ~/k3s-nfs-provisioner/rbac.yaml
+        content: |
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: nfs-client-provisioner
+            namespace: nfs-provisioner
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: nfs-client-provisioner-runner
+          rules:
+            - apiGroups: [""]
+              resources: ["nodes"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["persistentvolumes"]
+              verbs: ["get", "list", "watch", "create", "delete"]
+            - apiGroups: [""]
+              resources: ["persistentvolumeclaims"]
+              verbs: ["get", "list", "watch", "update"]
+            - apiGroups: ["storage.k8s.io"]
+              resources: ["storageclasses"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["events"]
+              verbs: ["create", "update", "patch"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: run-nfs-client-provisioner
+          subjects:
+            - kind: ServiceAccount
+              name: nfs-client-provisioner
+              namespace: nfs-provisioner
+          roleRef:
+            kind: ClusterRole
+            name: nfs-client-provisioner-runner
+            apiGroup: rbac.authorization.k8s.io
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          metadata:
+            name: leader-locking-nfs-client-provisioner
+            namespace: nfs-provisioner
+          rules:
+            - apiGroups: [""]
+              resources: ["endpoints"]
+              verbs: ["get", "list", "watch", "create", "update", "patch"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: leader-locking-nfs-client-provisioner
+            namespace: nfs-provisioner
+          subjects:
+            - kind: ServiceAccount
+              name: nfs-client-provisioner
+          roleRef:
+            kind: Role
+            name: leader-locking-nfs-client-provisioner
+            apiGroup: rbac.authorization.k8s.io
+        mode: '0644'
+
+    - name: Create NFS provisioner deployment
+      ansible.builtin.copy:
+        dest: ~/k3s-nfs-provisioner/deployment.yaml
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nfs-client-provisioner
+            namespace: nfs-provisioner
+            labels:
+              app: nfs-client-provisioner
+          spec:
+            replicas: 1
+            strategy:
+              type: Recreate
+            selector:
+              matchLabels:
+                app: nfs-client-provisioner
+            template:
+              metadata:
+                labels:
+                  app: nfs-client-provisioner
+              spec:
+                serviceAccountName: nfs-client-provisioner
+                containers:
+                  - name: nfs-client-provisioner
+                    image: registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+                    volumeMounts:
+                      - name: nfs-client-root
+                        mountPath: /persistentvolumes
+                    env:
+                      - name: PROVISIONER_NAME
+                        value: {{ nfs_provisioner_name }}
+                      - name: NFS_SERVER
+                        value: {{ nfs_server }}
+                      - name: NFS_PATH
+                        value: {{ nfs_path }}
+                volumes:
+                  - name: nfs-client-root
+                    nfs:
+                      server: {{ nfs_server }}
+                      path: {{ nfs_path }}
+        mode: '0644'
+
+    - name: Create StorageClass
+      ansible.builtin.copy:
+        dest: ~/k3s-nfs-provisioner/storageclass.yaml
+        content: |
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: {{ nfs_storage_class }}
+            annotations:
+              storageclass.kubernetes.io/is-default-class: "false"
+          provisioner: {{ nfs_provisioner_name }}
+          parameters:
+            archiveOnDelete: "true"  # Keeps deleted PVC data in "archived-" folder
+          allowVolumeExpansion: true
+          reclaimPolicy: Retain
+          volumeBindingMode: Immediate
+        mode: '0644'
+
+    - name: Apply namespace first
+      ansible.builtin.command:
+        cmd: k3s kubectl apply -f ~/k3s-nfs-provisioner/namespace.yaml
+      register: namespace_apply
+      changed_when: "'created' in namespace_apply.stdout or 'configured' in namespace_apply.stdout"
+
+    - name: Apply RBAC and StorageClass
+      ansible.builtin.command:
+        cmd: k3s kubectl apply -f ~/k3s-nfs-provisioner/rbac.yaml -f ~/k3s-nfs-provisioner/storageclass.yaml
+      register: rbac_apply
+      changed_when: "'created' in rbac_apply.stdout or 'configured' in rbac_apply.stdout"
+
+    - name: Apply deployment
+      ansible.builtin.command:
+        cmd: k3s kubectl apply -f ~/k3s-nfs-provisioner/deployment.yaml
+      register: deployment_apply
+      changed_when: "'created' in deployment_apply.stdout or 'configured' in deployment_apply.stdout"
+
+    - name: Wait for NFS provisioner to be ready
+      ansible.builtin.command:
+        cmd: k3s kubectl wait --for=condition=available --timeout=120s deployment/nfs-client-provisioner -n nfs-provisioner
+      register: wait_result
+      changed_when: false
+      retries: 3
+      delay: 10
+      until: wait_result.rc == 0
+
+    - name: Get StorageClasses
+      ansible.builtin.command:
+        cmd: k3s kubectl get storageclass
+      register: sc_list
+      changed_when: false
+
+    - name: Display available StorageClasses
+      ansible.builtin.debug:
+        msg: "{{ sc_list.stdout_lines }}"
+
+    - name: Copy manifests to local machine
+      ansible.builtin.fetch:
+        src: "~/k3s-nfs-provisioner/{{ item }}"
+        dest: "{{ playbook_dir }}/../../k3s-manifests/nfs-provisioner/{{ item }}"
+        flat: true
+      loop:
+        - namespace.yaml
+        - rbac.yaml
+        - deployment.yaml
+        - storageclass.yaml
+      delegate_to: k3s-cp-01

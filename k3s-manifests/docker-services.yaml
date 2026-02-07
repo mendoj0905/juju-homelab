@@ -1,0 +1,182 @@
+---
+# Namespace for external Docker services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docker-services
+
+---
+# Open-WebUI Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: openwebui
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: openwebui
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 3000
+
+---
+# Paperless Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8001
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: paperless
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8001
+
+---
+# Paperless-AI Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-ai
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8002
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: paperless-ai
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8002
+
+---
+# Paperless-GPT Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-gpt
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8003
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: paperless-gpt
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8003
+
+---
+# Ollama Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 11434
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ollama
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 11434
+
+---
+# Open Notebook Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-notebook
+  namespace: docker-services
+spec:
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8502
+      protocol: TCP
+    - name: api
+      port: 5055
+      targetPort: 5055
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: open-notebook
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - name: web
+        port: 8502
+      - name: api
+        port: 5055
+
+---
+# Dozzle Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: dozzle
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: dozzle
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8080

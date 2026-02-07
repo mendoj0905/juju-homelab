@@ -1,0 +1,23 @@
+# Ansible Inventory for K3s Cluster
+# Copy this file to inventory.ini and update with your actual IP addresses
+
+[k3s_server]
+k3s-cp-01 ansible_host=192.168.1.10  # Update with your control plane IP
+
+[k3s_agents]
+k3s-node-01 ansible_host=192.168.1.11  # Update with your node IPs
+k3s-node-02 ansible_host=192.168.1.12
+k3s-node-03 ansible_host=192.168.1.13
+
+[pis:children]
+k3s_server
+k3s_agents
+
+[pis:vars]
+ansible_user=ubuntu
+ansible_become=true
+ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
+
+# For initial setup before SSH keys are deployed, uncomment and set:
+# ansible_password=YOUR_PASSWORD_HERE
+# ansible_become_password=YOUR_PASSWORD_HERE

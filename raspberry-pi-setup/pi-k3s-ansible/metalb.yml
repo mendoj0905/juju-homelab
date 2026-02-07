@@ -1,0 +1,66 @@
+---
+# MetalLB Load Balancer Installation
+# Run this AFTER site.yml completes successfully
+# Usage: ansible-playbook metalb.yml
+
+- name: Install MetalLB on k3s cluster
+  hosts: k3s_server
+  gather_facts: false
+  become: true
+
+  vars:
+    # Configure your IP pool range (must be on same network as your Pis)
+    # Adjust these to match your network
+    metallb_ip_range: "192.168.68.200-192.168.68.220"
+    metallb_version: "v0.14.3"
+
+  tasks:
+    - name: Apply MetalLB manifest
+      ansible.builtin.shell: |
+        k3s kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml
+      register: metallb_install
+      changed_when: "'created' in metallb_install.stdout or 'configured' in metallb_install.stdout"
+
+    - name: Wait for MetalLB controller to be ready
+      ansible.builtin.shell: |
+        k3s kubectl wait --namespace metallb-system \
+          --for=condition=ready pod \
+          --selector=app=metallb \
+          --timeout=90s
+      retries: 5
+      delay: 10
+      register: metallb_ready
+      until: metallb_ready.rc == 0
+
+    - name: Create MetalLB IPAddressPool
+      ansible.builtin.shell: |
+        k3s kubectl apply -f - <<EOF
+        apiVersion: metallb.io/v1beta1
+        kind: IPAddressPool
+        metadata:
+          name: default-pool
+          namespace: metallb-system
+        spec:
+          addresses:
+          - {{ metallb_ip_range }}
+        ---
+        apiVersion: metallb.io/v1beta1
+        kind: L2Advertisement
+        metadata:
+          name: default
+          namespace: metallb-system
+        spec:
+          ipAddressPools:
+          - default-pool
+        EOF
+      register: metallb_config
+      changed_when: "'created' in metallb_config.stdout or 'configured' in metallb_config.stdout"
+
+    - name: Verify MetalLB installation
+      ansible.builtin.shell: |
+        k3s kubectl get pods -n metallb-system
+      register: metallb_pods
+
+    - name: Show MetalLB status
+      ansible.builtin.debug:
+        var: metallb_pods.stdout_lines

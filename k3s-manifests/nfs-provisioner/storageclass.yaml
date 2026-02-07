@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-synology
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: nfs-synology
+parameters:
+  archiveOnDelete: "true"  # Keeps deleted PVC data in "archived-" folder
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: Immediate

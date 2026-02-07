@@ -1,0 +1,202 @@
+---
+# Open-WebUI Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openwebui
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # Change to letsencrypt-prod after testing
+spec:
+  tls:
+    - hosts:
+        - openwebui.justinmendoza.net
+      secretName: openwebui-tls
+  rules:
+    - host: openwebui.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openwebui
+                port:
+                  number: 80
+
+---
+# Paperless Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - paperless.justinmendoza.net
+      secretName: paperless-tls
+  rules:
+    - host: paperless.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless
+                port:
+                  number: 80
+
+---
+# Paperless-AI Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-ai
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - paperless-ai.justinmendoza.net
+      secretName: paperless-ai-tls
+  rules:
+    - host: paperless-ai.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-ai
+                port:
+                  number: 80
+
+---
+# Paperless-GPT Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-gpt
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - paperless-gpt.justinmendoza.net
+      secretName: paperless-gpt-tls
+  rules:
+    - host: paperless-gpt.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-gpt
+                port:
+                  number: 80
+
+---
+# Dozzle Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dozzle
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - dozzle.justinmendoza.net
+      secretName: dozzle-tls
+  rules:
+    - host: dozzle.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dozzle
+                port:
+                  number: 80
+
+---
+# Open Notebook Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: open-notebook
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - notebook.justinmendoza.net
+      secretName: open-notebook-tls
+  rules:
+    - host: notebook.justinmendoza.net
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: open-notebook
+                port:
+                  number: 5055
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: open-notebook
+                port:
+                  number: 80
+
+---
+# Ollama Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ollama
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - ollama.justinmendoza.net
+      secretName: ollama-tls
+  rules:
+    - host: ollama.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ollama
+                port:
+                  number: 80
