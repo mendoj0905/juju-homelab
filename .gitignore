@@ -53,3 +53,7 @@ Thumbs.db
 
 # Docker volumes (if accidentally created locally)
 volumes/
+
+# Calibre library and Calibre-Web data
+/calibre/
+/calibre-web/

@@ -201,7 +201,48 @@ services:
       - ollama
     restart: unless-stopped
 
-  # optional but helpful log viewer
+  # ---------------------------
+  # Calibre Desktop
+  # Full Calibre with DeDRM plugin support
+  # ---------------------------
+  calibre:
+    image: lscr.io/linuxserver/calibre:latest
+    container_name: calibre
+    ports:
+      - "8084:8080"  # Web desktop
+      - "8085:8081"  # HTTPS (optional)
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./calibre/config:/config
+      - /mnt/synology/books:/books
+    restart: unless-stopped
+
+  # ---------------------------
+  # Calibre-Web
+  # Lightweight web UI for ebook library
+  # ---------------------------
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    ports:
+      - "8083:8083"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+    volumes:
+      - ./calibre-web/config:/config
+      - /mnt/synology/books:/books
+    restart: unless-stopped
+
+  # ---------------------------
+  # Dozzle
+  # Optional but helpful log viewer
+  # ---------------------------
   dozzle:
     image: amir20/dozzle:latest
     restart: unless-stopped

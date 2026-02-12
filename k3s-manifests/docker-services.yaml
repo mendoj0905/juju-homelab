@@ -180,3 +180,51 @@ subsets:
       - ip: 100.123.171.3
     ports:
       - port: 8080
+
+---
+# Calibre Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: calibre
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8084
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: calibre
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8084
+
+---
+# Calibre-Web Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: calibre-web
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8083
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: calibre-web
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8083
