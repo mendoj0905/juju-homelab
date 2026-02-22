@@ -86,6 +86,7 @@ All services run on the GPU-enabled host. The compose file uses comment headers 
 | `open-notebook` | `lfnovo/open_notebook:v1-latest-single` | 8502, 5055 | Research assistant with RAG |
 | `calibre` | `lscr.io/linuxserver/calibre:latest` | 8084, 8085 | Full Calibre ebook manager |
 | `calibre-web` | `lscr.io/linuxserver/calibre-web:latest` | 8083 | Lightweight ebook web UI |
+| `homeassistant` | `ghcr.io/home-assistant/home-assistant:stable` | 8123 (host) | Smart home automation |
 | `dozzle` | `amir20/dozzle:latest` | 8080 | Container log viewer |
 
 ### Service URLs (localhost)
@@ -102,6 +103,7 @@ All services run on the GPU-enabled host. The compose file uses comment headers 
 | SurrealDB | http://localhost:8000 |
 | Calibre Desktop | http://localhost:8084 |
 | Calibre-Web | http://localhost:8083 |
+| Home Assistant | http://localhost:8123 |
 
 ---
 
@@ -203,6 +205,12 @@ http://paperless:8000      (not localhost:8001)
 redis://paperless-redis:6379
 postgresql://paperless-db:5432/paperless
 ```
+
+**Exception — Home Assistant uses `network_mode: host`:**
+- HA binds directly to the host network (required for mDNS/SSDP discovery)
+- No `ports:` mapping needed; it is accessible at `http://localhost:8123`
+- Other containers must use `http://<HOST_IP>:8123` to reach it (not `http://homeassistant:8123`)
+- HA itself reaches other services via `http://localhost:<HOST_PORT>` (e.g., `http://localhost:11434` for Ollama)
 
 ### Ansible Playbook Conventions
 

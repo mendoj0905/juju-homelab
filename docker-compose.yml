@@ -240,6 +240,24 @@ services:
     restart: unless-stopped
 
   # ---------------------------
+  # Home Assistant
+  # Smart home automation platform
+  # ---------------------------
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    network_mode: host          # Required for mDNS/SSDP device discovery
+    privileged: true            # Required for USB device access
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ./homeassistant/config:/config
+    # Uncomment and adjust if using a USB Zigbee/Z-Wave stick:
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    restart: unless-stopped
+
+  # ---------------------------
   # Dozzle
   # Optional but helpful log viewer
   # ---------------------------
