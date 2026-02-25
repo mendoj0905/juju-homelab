@@ -5,6 +5,8 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "11434:11434"
     volumes:
@@ -28,6 +30,8 @@ services:
   openwebui-db:
     image: postgres:16
     container_name: openwebui-db
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       - POSTGRES_DB=openwebui
       - POSTGRES_USER=openwebui
@@ -43,6 +47,8 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "3000:8080"
     environment:
@@ -63,6 +69,8 @@ services:
   paperless-db:
     image: postgres:16
     container_name: paperless-db
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       - POSTGRES_DB=paperless
       - POSTGRES_USER=paperless
@@ -74,12 +82,16 @@ services:
   paperless-redis:
     image: redis:7
     container_name: paperless-redis
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
 
   # gotenberg service that paperless uses for document conversion
   gotenberg:
     image: docker.io/gotenberg/gotenberg:8.25
     container_name: gotenberg
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     env_file: 
       - ./gotenberg/.env
     restart: unless-stopped
@@ -92,6 +104,8 @@ services:
   tika:
     image: docker.io/apache/tika:latest
     container_name: tika
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
     env_file: ./tika/.env
 
@@ -101,6 +115,8 @@ services:
   paperless:
     image: ghcr.io/paperless-ngx/paperless-ngx:latest
     container_name: paperless
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       - paperless-db
       - paperless-redis
@@ -131,6 +147,8 @@ services:
   paperless-gpt:
     image: ghcr.io/icereed/paperless-gpt:latest
     container_name: paperless-gpt
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8003:8080"
     env_file: 
@@ -148,6 +166,8 @@ services:
   paperless-ai:
     image: ghcr.io/clusterzx/paperless-ai:latest
     container_name: paperless-ai
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8002:3000"
     environment:
@@ -168,6 +188,8 @@ services:
   surrealdb:
     image: surrealdb/surrealdb:v2
     container_name: surrealdb
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     command: start --user root --pass password --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
     ports:
       - "8000:8000"
@@ -182,6 +204,8 @@ services:
   open-notebook:
     image: lfnovo/open_notebook:v1-latest-single
     container_name: open-notebook
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     pull_policy: always
     ports:
       - "8502:8502"  # Web UI
@@ -208,6 +232,8 @@ services:
   calibre:
     image: lscr.io/linuxserver/calibre:latest
     container_name: calibre
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8084:8080"  # Web desktop
       - "8085:8081"  # HTTPS (optional)
@@ -227,6 +253,8 @@ services:
   calibre-web:
     image: lscr.io/linuxserver/calibre-web:latest
     container_name: calibre-web
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8083:8083"
     environment:
@@ -246,7 +274,10 @@ services:
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant
-    network_mode: host          # Required for mDNS/SSDP device discovery
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "8123:8123"
     privileged: true            # Required for USB device access
     environment:
       - TZ=America/New_York
@@ -258,6 +289,25 @@ services:
     restart: unless-stopped
 
   # ---------------------------
+  # Watchtower
+  # Auto-updates containers nightly and cleans up old images
+  # ---------------------------
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 3 * * *
+      - WATCHTOWER_ROLLING_RESTART=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - DOCKER_API_VERSION=1.44
+
+  # ---------------------------
   # Dozzle
   # Optional but helpful log viewer
   # ---------------------------
@@ -265,6 +315,8 @@ services:
     image: amir20/dozzle:latest
     restart: unless-stopped
     container_name: dozzle
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     env_file: 
       - ./dozzle/.env
     volumes:

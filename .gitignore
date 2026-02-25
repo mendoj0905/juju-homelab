@@ -57,3 +57,6 @@ volumes/
 # Calibre library and Calibre-Web data
 /calibre/
 /calibre-web/
+
+# Homeassistant configuration and data
+/homeassistant/

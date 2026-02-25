@@ -228,3 +228,27 @@ subsets:
       - ip: 100.123.171.3
     ports:
       - port: 8083
+
+---
+# Home Assistant Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: homeassistant
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8123
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: homeassistant
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8123
