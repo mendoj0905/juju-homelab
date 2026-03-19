@@ -289,6 +289,42 @@ services:
     restart: unless-stopped
 
   # ---------------------------
+  # Mosquitto MQTT Broker
+  # Required by Zigbee2MQTT
+  # ---------------------------
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+    ports:
+      - "1883:1883"
+    restart: unless-stopped
+
+  # ---------------------------
+  # Zigbee2MQTT
+  # Zigbee to MQTT bridge for smart home devices
+  # ---------------------------
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt
+    container_name: zigbee2mqtt
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - ./zigbee2mqtt-data:/app/data
+      - /run/udev:/run/udev:ro
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+
+  # ---------------------------
   # Watchtower
   # Auto-updates containers nightly and cleans up old images
   # ---------------------------

@@ -60,3 +60,8 @@ volumes/
 
 # Homeassistant configuration and data
 /homeassistant/
+
+# Zigbee2MQTT runtime data
+/zigbee2mqtt-data/state.json
+/zigbee2mqtt-data/coordinator_backup.json
+/zigbee2mqtt-data/log/

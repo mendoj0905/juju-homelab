@@ -1,0 +1,49 @@
+version: 5
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+serial:
+  port: /dev/ttyUSB0
+  baudrate: 115200
+  rtscts: false
+  adapter: ember
+advanced:
+  log_level: info
+  channel: 11
+  network_key:
+    - 75
+    - 40
+    - 192
+    - 104
+    - 227
+    - 62
+    - 81
+    - 17
+    - 170
+    - 221
+    - 88
+    - 37
+    - 57
+    - 59
+    - 18
+    - 40
+  pan_id: 25985
+  ext_pan_id:
+    - 226
+    - 194
+    - 135
+    - 168
+    - 72
+    - 104
+    - 198
+    - 62
+frontend:
+  enabled: true
+  port: 8080
+homeassistant:
+  enabled: true
+devices:
+  '0xffffb40e060684a5':
+    friendly_name: Dryer Vibration Detector
+  '0x54ef4410012282b5':
+    friendly_name: '0x54ef4410012282b5'
