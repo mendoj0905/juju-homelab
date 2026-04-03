@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--mount", "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
+        "docker/mcp-server"
+      ]
+    }
+  }
+}
