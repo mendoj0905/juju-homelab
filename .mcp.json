@@ -8,6 +8,16 @@
         "-i",
         "mcp/dockerhub"
       ]
+    },
+    "kubernetes": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--mount", "type=bind,src=/home/jmendoza/.kube/k3s-config,dst=/root/.kube/config,readonly",
+        "mcp/kubernetes"
+      ]
     }
   }
 }
