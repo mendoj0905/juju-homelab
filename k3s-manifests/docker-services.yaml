@@ -230,6 +230,174 @@ subsets:
       - port: 8083
 
 ---
+# Plex Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 32400
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: plex
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 32400
+
+---
+# Radarr Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 7878
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: radarr
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 7878
+
+---
+# Sonarr Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8989
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sonarr
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8989
+
+---
+# Prowlarr Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 9696
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: prowlarr
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 9696
+
+---
+# Bazarr Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 6767
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: bazarr
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 6767
+
+---
+# SABnzbd Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: sabnzbd
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8082
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sabnzbd
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8082
+
+---
+# qBittorrent Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 8081
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: qbittorrent
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 8081
+
+---
 # Home Assistant Service & Endpoints
 apiVersion: v1
 kind: Service

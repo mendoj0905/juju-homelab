@@ -325,6 +325,141 @@ services:
       - "8090:8080"
 
   # ---------------------------
+  # Plex Media Server
+  # GPU-accelerated media streaming
+  # ---------------------------
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "32400:32400"
+    env_file:
+      - ./plex/.env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+    volumes:
+      - ./plex/data:/config
+      - /mnt/e/media:/media
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ---------------------------
+  # Radarr
+  # Movie management & automation
+  # ---------------------------
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "7878:7878"
+    env_file:
+      - ./radarr/.env
+    volumes:
+      - ./radarr/data:/config
+      - /mnt/e/media:/media
+    restart: unless-stopped
+
+  # ---------------------------
+  # Sonarr
+  # TV show management & automation
+  # ---------------------------
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "8989:8989"
+    env_file:
+      - ./sonarr/.env
+    volumes:
+      - ./sonarr/data:/config
+      - /mnt/e/media:/media
+    restart: unless-stopped
+
+  # ---------------------------
+  # Prowlarr
+  # Indexer manager for Radarr/Sonarr
+  # ---------------------------
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "9696:9696"
+    env_file:
+      - ./prowlarr/.env
+    volumes:
+      - ./prowlarr/data:/config
+    restart: unless-stopped
+
+  # ---------------------------
+  # Bazarr
+  # Subtitle auto-downloader
+  # ---------------------------
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "6767:6767"
+    env_file:
+      - ./bazarr/.env
+    volumes:
+      - ./bazarr/data:/config
+      - /mnt/e/media:/media
+    restart: unless-stopped
+
+  # ---------------------------
+  # SABnzbd
+  # Usenet download client
+  # ---------------------------
+  sabnzbd:
+    image: linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "8082:8080"
+    env_file:
+      - ./sabnzbd/.env
+    volumes:
+      - ./sabnzbd/data:/config
+      - /mnt/e/media:/media
+    restart: unless-stopped
+
+  # ---------------------------
+  # qBittorrent
+  # Torrent download client
+  # ---------------------------
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "8081:8080"
+    env_file:
+      - ./qbittorrent/.env
+    volumes:
+      - ./qbittorrent/data:/config
+      - /mnt/e/media:/media
+    restart: unless-stopped
+
+  # ---------------------------
   # Watchtower
   # Auto-updates containers nightly and cleans up old images
   # ---------------------------
