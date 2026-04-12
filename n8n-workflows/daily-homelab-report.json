@@ -20,8 +20,7 @@
     },
     {
       "parameters": {
-        "command": "bash /home/jmendoza/homelab/scripts/homelab-health-check.sh",
-        "cwd": "/home/jmendoza/homelab"
+        "command": "bash /scripts/homelab-health-check.sh"
       },
       "id": "ssh_docker",
       "name": "SSH Docker Health",

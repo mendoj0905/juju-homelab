@@ -460,6 +460,24 @@ services:
     restart: unless-stopped
 
   # ---------------------------
+  # Homepage
+  # Service dashboard
+  # ---------------------------
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./homepage/.env
+    volumes:
+      - ./homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  # ---------------------------
   # Watchtower
   # Auto-updates containers nightly and cleans up old images
   # ---------------------------
@@ -477,6 +495,31 @@ services:
       - WATCHTOWER_ROLLING_RESTART=true
       - WATCHTOWER_LABEL_ENABLE=true
       - DOCKER_API_VERSION=1.44
+
+  # ---------------------------
+  # SSH Server
+  # Lightweight SSH access for n8n health checks
+  # ---------------------------
+  ssh-server:
+    image: lscr.io/linuxserver/openssh-server:latest
+    container_name: ssh-server
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "2222:2222"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - PUBLIC_KEY=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIwJkLyieqb3UaSiCbDpWac3Zrs+IvXOXhcwGdTCgcqA n8n-health-report
+      - SUDO_ACCESS=false
+      - USER_NAME=jmendoza
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+      - ./scripts:/scripts:ro
+      - ./docker-compose.yml:/homelab/docker-compose.yml:ro
+    restart: unless-stopped
 
   # ---------------------------
   # Dozzle

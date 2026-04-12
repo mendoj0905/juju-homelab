@@ -4,30 +4,34 @@
 # Called by the n8n daily health report workflow via SSH.
 
 set -euo pipefail
-cd /home/jmendoza/homelab
 
 # --- HTTP Health Checks ---
+# Use container names (Docker network) when running inside a container,
+# or localhost when running directly on the host.
 declare -A ENDPOINTS=(
-  ["dozzle"]="http://localhost:8080"
-  ["paperless"]="http://localhost:8001/api/"
-  ["paperless-ai"]="http://localhost:8002"
-  ["paperless-gpt"]="http://localhost:8003"
-  ["open-webui"]="http://localhost:3000"
-  ["ollama"]="http://localhost:11434/api/tags"
-  ["open-notebook"]="http://localhost:8502"
-  ["surrealdb"]="http://localhost:8000/health"
-  ["calibre"]="http://localhost:8084"
-  ["calibre-web"]="http://localhost:8083"
-  ["homeassistant"]="http://localhost:8123"
-  ["plex"]="http://localhost:32400/identity"
-  ["homepage"]="http://localhost:3001"
+  ["dozzle"]="http://dozzle:8080"
+  ["paperless"]="http://paperless:8000/api/"
+  ["paperless-ai"]="http://paperless-ai:3000"
+  ["paperless-gpt"]="http://paperless-gpt:8080"
+  ["open-webui"]="http://open-webui:8080"
+  ["ollama"]="http://ollama:11434/api/tags"
+  ["open-notebook"]="http://open-notebook:8502"
+  ["surrealdb"]="http://surrealdb:8000/health"
+  ["calibre"]="http://calibre:8080"
+  ["calibre-web"]="http://calibre-web:8083"
+  ["homeassistant"]="http://homeassistant:8123"
+  ["plex"]="http://plex:32400/identity"
+  ["homepage"]="http://homepage:3000"
 )
 
 http_checks="["
 first=true
 for name in $(echo "${!ENDPOINTS[@]}" | tr ' ' '\n' | sort); do
   url="${ENDPOINTS[$name]}"
-  code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" 2>/dev/null || echo "000")
+  code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" 2>/dev/null || true)
+  code=${code:-0}
+  # Ensure it's a valid number
+  if ! [[ "$code" =~ ^[0-9]+$ ]]; then code=0; fi
   healthy=false
   if [[ "$code" =~ ^[23] ]]; then
     healthy=true
@@ -38,42 +42,19 @@ done
 http_checks+="]"
 
 # --- Container Status ---
-containers=$(docker compose ps --format json 2>/dev/null | python3 -c "
-import sys, json
-
-entries = []
-for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
-    try:
-        c = json.loads(line)
-    except json.JSONDecodeError:
-        continue
-    name = c.get('Name', '')
-    state = c.get('State', '')
-    health = c.get('Health', '')
-    running_for = c.get('RunningFor', '')
-    entries.append({'name': name, 'state': state, 'health': health, 'uptime': running_for})
-print(json.dumps(entries))
-" 2>/dev/null || echo "[]")
-
-# Inject restart counts — rebuild the array with restarts field added
-containers=$(echo "$containers" | python3 -c "
-import sys, json, subprocess
-
-entries = json.load(sys.stdin)
-for e in entries:
-    try:
-        r = subprocess.run(
-            ['docker', 'inspect', '--format', '{{.RestartCount}}', e['name']],
-            capture_output=True, text=True, timeout=5
-        )
-        e['restarts'] = int(r.stdout.strip()) if r.returncode == 0 else 0
-    except Exception:
-        e['restarts'] = 0
-print(json.dumps(entries))
-" 2>/dev/null || echo "[]")
+containers="["
+first=true
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  cname=$(echo "$line" | sed 's/|.*//')
+  cstate=$(echo "$line" | cut -d'|' -f2)
+  chealth=$(echo "$line" | cut -d'|' -f3)
+  cuptime=$(echo "$line" | cut -d'|' -f4)
+  restarts=$(docker inspect --format '{{.RestartCount}}' "$cname" 2>/dev/null || echo "0")
+  if [ "$first" = true ]; then first=false; else containers+=","; fi
+  containers+="{\"name\":\"$cname\",\"state\":\"$cstate\",\"health\":\"$chealth\",\"uptime\":\"$cuptime\",\"restarts\":$restarts}"
+done < <(docker ps -a --format '{{.Names}}|{{.State}}|{{.Status}}|{{.RunningFor}}' --filter "label=com.docker.compose.project=homelab" 2>/dev/null)
+containers+="]"
 
 # --- Disk Usage ---
 disk="["
@@ -88,7 +69,7 @@ while IFS= read -r line; do
   pct=$(echo "$line" | awk '{print $5}')
   if [ "$first" = true ]; then first=false; else disk+=","; fi
   disk+="{\"filesystem\":\"$fs\",\"size\":\"$size\",\"used\":\"$used\",\"available\":\"$avail\",\"percent\":\"$pct\"}"
-done < <(df -h / /mnt/synology --output=source,size,used,avail,pcent 2>/dev/null)
+done < <(df -h / /mnt/synology --output=source,size,used,avail,pcent 2>/dev/null || df -h / --output=source,size,used,avail,pcent 2>/dev/null)
 disk+="]"
 
 # --- Output ---

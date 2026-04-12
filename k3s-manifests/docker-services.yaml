@@ -398,6 +398,30 @@ subsets:
       - port: 8081
 
 ---
+# Homepage Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 3001
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: homepage
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 3001
+
+---
 # Home Assistant Service & Endpoints
 apiVersion: v1
 kind: Service
@@ -420,3 +444,27 @@ subsets:
       - ip: 100.123.171.3
     ports:
       - port: 8123
+
+---
+# SSH Server Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: ssh-server
+  namespace: docker-services
+spec:
+  ports:
+    - port: 22
+      targetPort: 2222
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ssh-server
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 100.123.171.3
+    ports:
+      - port: 2222
