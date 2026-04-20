@@ -1,0 +1,27 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/info-widgets/
+
+- greeting:
+    text_size: xl
+    text: Hello, Justin!
+
+- resources:
+    label: GPU System
+    cpu: true
+    memory: true
+    disk: /
+    cputemp: true
+    tempmin: 0 # optional, minimum cpu temp
+    tempmax: 100
+
+- search:
+    provider: google
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+        dateStyle: short
+        timeStyle: short
+        hour12: true

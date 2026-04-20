@@ -1,0 +1,82 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/services/
+
+- Media:
+    - Plex:
+        icon: plex.png
+        href: https://plex.justinmendoza.net/
+        description: Plex Media Server
+    - sabnzbd:
+        icon: sabnzbd.png
+        href: https://sabnzbd.justinmendoza.net/
+        description: SABnzbd Download Manager
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://qbittorrent.justinmendoza.net/
+        description: qBittorrent Download Client
+    - Prowlarr:
+        icon: prowlarr.png
+        href: https://prowlarr.justinmendoza.net/
+        description: Prowlarr Indexer Manager
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.justinmendoza.net/
+        description: Radarr Movie Manager
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.justinmendoza.net/
+        description: Sonarr TV Show Manager
+    - Bazaar:
+        icon: bazarr.svg
+        href: https://bazarr.justinmendoza.net/
+        description: Bazarr Subtitle Manager
+- Infrastructure:
+    - Dozzle:
+        icon: dozzle.png
+        href: https://dozzle.justinmendoza.net/
+        description: Dozzle Container Log Viewer
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: https://uptime.justinmendoza.net/
+        description: Uptime Kuma Status Monitor
+- Book Management:
+    - Calibre:
+        icon: calibre.png
+        href: https://calibre.justinmendoza.net/
+        description: Calibre eBook Management
+    - Calibre Web:
+        icon: calibre-web.png
+        href: https://calibre-web.justinmendoza.net/
+        description: Calibre Web eBook Management
+- Home Automation:        
+    - Home Assistant:
+        icon: home-assistant.png
+        href: https://homeassistant.justinmendoza.net/
+        description: Home Automation Dashboard
+- AI:
+    - Open Web UI:
+        icon: open-webui.svg
+        href: https://openwebui.justinmendoza.net/
+        description: Open Web UI for AI Models
+    - n8n:
+        icon: n8n.png
+        href: https://n8n.justinmendoza.net/
+        description: n8n Workflow Automation
+    - Paperless:
+        icon: paperless.png
+        href: https://paperless.justinmendoza.net/
+        description: Paperless Document Management
+    - Paperless-ai:
+        icon: paperless-ai.png
+        href: https://paperless-ai.justinmendoza.net/
+        description: Paperless AI Document Management
+    - Paperless-gpt:
+        icon: paperless-gpt.png
+        href: https://paperless-gpt.justinmendoza.net/
+        description: Paperless GPT Document Management
+    - Open Notebook:
+        icon: mdi-notebook-edit-outline
+        href: https://opennotebook.justinmendoza.net/
+        description: Open Notebook for AI Model Experiments
+

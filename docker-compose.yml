@@ -497,28 +497,21 @@ services:
       - DOCKER_API_VERSION=1.44
 
   # ---------------------------
-  # SSH Server
-  # Lightweight SSH access for n8n health checks
+  # Health API
+  # HTTP endpoint for n8n health checks
   # ---------------------------
-  ssh-server:
-    image: lscr.io/linuxserver/openssh-server:latest
-    container_name: ssh-server
+  health-api:
+    build: ./health-api
+    container_name: health-api
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
-      - "2222:2222"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-      - PUBLIC_KEY=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIwJkLyieqb3UaSiCbDpWac3Zrs+IvXOXhcwGdTCgcqA n8n-health-report
-      - SUDO_ACCESS=false
-      - USER_NAME=jmendoza
+      - "8096:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker:ro
       - ./scripts:/scripts:ro
-      - ./docker-compose.yml:/homelab/docker-compose.yml:ro
+      - ~/.kube/k3s-config:/root/.kube/config:ro
+    command: ["socat", "TCP-LISTEN:8080,reuseaddr,fork", "EXEC:/scripts/health-http-handler.sh"]
     restart: unless-stopped
 
   # ---------------------------

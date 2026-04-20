@@ -161,3 +161,14 @@ Add-ons: Flannel (CNI), Traefik (ingress), MetalLB (L2 LB), NFS provisioner, cer
 curl http://localhost:11434/api/tags       # Ollama
 curl http://localhost:8001/api/            # Paperless
 ```
+
+### Zigbee USB Dongle (Sonoff Zigbee 3.0 V2)
+
+Automated via `scripts/wsl-usb-zigbee.ps1` (Windows Scheduled Task at logon) and `scripts/wsl-boot.sh` (WSL boot via `wsl.conf`).
+
+| Action | Command |
+|--------|---------|
+| Manual attach from WSL | `powershell.exe -Command "usbipd attach --wsl --hardware-id 10c4:ea60"` |
+| Manual modprobe | `sudo modprobe cp210x` |
+| Verify device | `ls /dev/ttyUSB0` |
+| Verify zigbee2mqtt | `docker logs zigbee2mqtt --tail 5` |

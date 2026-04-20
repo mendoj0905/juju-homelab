@@ -20,127 +20,27 @@
     },
     {
       "parameters": {
-        "command": "bash /scripts/homelab-health-check.sh"
-      },
-      "id": "ssh_docker",
-      "name": "SSH Docker Health",
-      "type": "n8n-nodes-base.ssh",
-      "typeVersion": 1,
-      "position": [250, -100],
-      "credentials": {
-        "sshPassword": {
-          "id": "",
-          "name": "Docker Host SSH"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "url": "https://kubernetes.default.svc/api/v1/nodes",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "none",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $('Read SA Token').item.json.token }}"
-            }
-          ]
-        },
+        "url": "http://health-api.docker-services.svc.cluster.local/",
         "options": {
-          "allowUnauthorizedCerts": true,
-          "timeout": 10000
+          "timeout": 60000
         }
       },
-      "id": "k3s_nodes",
-      "name": "K3s Get Nodes",
+      "id": "http_health",
+      "name": "Collect Health Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [500, -200],
+      "position": [250, 0],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "url": "https://kubernetes.default.svc/api/v1/pods",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "none",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $('Read SA Token').item.json.token }}"
-            }
-          ]
-        },
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "fieldSelector",
-              "value": "status.phase!=Running,status.phase!=Succeeded"
-            }
-          ]
-        },
-        "options": {
-          "allowUnauthorizedCerts": true,
-          "timeout": 10000
-        }
+        "jsCode": "// Add timestamp to health data\nconst data = $json || {};\nreturn [{ json: { timestamp: new Date().toISOString(), ...data } }];"
       },
-      "id": "k3s_pods",
-      "name": "K3s Unhealthy Pods",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [500, 0],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "url": "https://kubernetes.default.svc/apis/cert-manager.io/v1/certificates",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "none",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $('Read SA Token').item.json.token }}"
-            }
-          ]
-        },
-        "options": {
-          "allowUnauthorizedCerts": true,
-          "timeout": 10000
-        }
-      },
-      "id": "k3s_certs",
-      "name": "K3s TLS Certs",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [500, 200],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Read the service account token from the filesystem\nconst { execSync } = require('child_process');\ntry {\n  const token = execSync('cat /var/run/secrets/kubernetes.io/serviceaccount/token').toString().trim();\n  return [{ json: { token } }];\n} catch (e) {\n  return [{ json: { token: '', error: 'Could not read SA token' } }];\n}"
-      },
-      "id": "read_sa_token",
-      "name": "Read SA Token",
+      "id": "add_timestamp",
+      "name": "Add Timestamp",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [250, 100]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge Docker SSH data + K3s API data into one payload\nconst timestamp = new Date().toISOString();\n\n// Docker data from SSH node\nlet docker = { http_checks: [], containers: [], disk: [] };\ntry {\n  const sshOutput = $('SSH Docker Health').first().json;\n  if (sshOutput.stdout) {\n    docker = JSON.parse(sshOutput.stdout);\n  }\n} catch (e) {\n  docker.error = 'SSH collection failed: ' + e.message;\n}\n\n// K3s nodes\nlet nodes = [];\ntry {\n  const nodesData = $('K3s Get Nodes').first().json;\n  if (nodesData.items) {\n    nodes = nodesData.items.map(n => ({\n      name: n.metadata.name,\n      status: n.status.conditions.find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady',\n      ip: n.status.addresses.find(a => a.type === 'InternalIP')?.address || 'unknown',\n      version: n.status.nodeInfo.kubeletVersion\n    }));\n  }\n} catch (e) {\n  nodes = [{ error: 'K3s nodes query failed: ' + e.message }];\n}\n\n// K3s unhealthy pods\nlet unhealthyPods = [];\ntry {\n  const podsData = $('K3s Unhealthy Pods').first().json;\n  if (podsData.items) {\n    unhealthyPods = podsData.items.map(p => ({\n      name: p.metadata.name,\n      namespace: p.metadata.namespace,\n      phase: p.status.phase,\n      reason: p.status.reason || 'unknown'\n    }));\n  }\n} catch (e) {\n  unhealthyPods = [{ error: 'K3s pods query failed: ' + e.message }];\n}\n\n// K3s certificates\nlet certificates = [];\ntry {\n  const certsData = $('K3s TLS Certs').first().json;\n  if (certsData.items) {\n    const now = new Date();\n    const fourteenDays = 14 * 24 * 60 * 60 * 1000;\n    certificates = certsData.items.map(c => {\n      const notAfter = c.status?.notAfter ? new Date(c.status.notAfter) : null;\n      const daysUntilExpiry = notAfter ? Math.floor((notAfter - now) / (24 * 60 * 60 * 1000)) : null;\n      return {\n        name: c.metadata.name,\n        namespace: c.metadata.namespace,\n        ready: c.status?.conditions?.find(cond => cond.type === 'Ready')?.status === 'True',\n        notAfter: c.status?.notAfter || 'unknown',\n        daysUntilExpiry,\n        expiringSoon: daysUntilExpiry !== null && daysUntilExpiry <= 14\n      };\n    });\n  }\n} catch (e) {\n  certificates = [{ error: 'K3s certs query failed: ' + e.message }];\n}\n\nreturn [{\n  json: {\n    timestamp,\n    docker,\n    k3s: { nodes, unhealthy_pods: unhealthyPods, certificates }\n  }\n}];"
-      },
-      "id": "merge_data",
-      "name": "Merge All Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [750, 0]
+      "position": [500, 0]
     },
     {
       "parameters": {
@@ -148,16 +48,16 @@
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'llama3', messages: [{ role: 'system', content: 'You are a homelab monitoring assistant. Analyze the health check data below and produce a concise daily report.\\n\\nFormat:\\n1. One-line overall status (e.g., \"All systems healthy\" or \"2 issues detected\")\\n2. Issues and warnings (if any), each with a brief explanation\\n3. Actionable recommendations (if any)\\n\\nFlag these conditions:\\n- Services returning non-2xx/3xx HTTP status\\n- Containers in unhealthy/restarting state or with restart count > 3\\n- K3s nodes in NotReady state\\n- Pods in CrashLoopBackOff, Pending, or Error state\\n- TLS certificates expiring within 14 days\\n- Disk usage above 80%\\n\\nKeep the report concise — this is a Discord message, not a document.\\nDo not repeat raw data. Summarize and explain.' }, { role: 'user', content: JSON.stringify($json) }], stream: false }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'qwen3.5:9b', messages: [{ role: 'system', content: 'You are a homelab monitoring assistant. Analyze the health check data below and produce a concise daily report.\\n\\nFormat:\\n1. One-line overall status (e.g., \"All systems healthy\" or \"2 issues detected\")\\n2. Issues and warnings (if any), each with a brief explanation\\n3. Actionable recommendations (if any)\\n\\nFlag these conditions:\\n- Services returning non-2xx/3xx HTTP status\\n- Containers in unhealthy/restarting state or with restart count > 3\\n- K3s nodes in NotReady state\\n- Pods in CrashLoopBackOff, Pending, or Error state\\n- TLS certificates expiring within 14 days\\n- Disk usage above 80%\\n\\nKeep the report concise — this is a Discord message, not a document.\\nDo not repeat raw data. Summarize and explain.' }, { role: 'user', content: JSON.stringify($json) }], stream: false }) }}",
         "options": {
-          "timeout": 60000
+          "timeout": 120000
         }
       },
       "id": "ollama_request",
       "name": "Ollama Summarize",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, -100],
+      "position": [750, 0],
       "onError": "continueRegularOutput"
     },
     {
@@ -166,16 +66,16 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
               "id": "ollama-check",
-              "leftValue": "={{ $json.message?.content }}",
-              "rightValue": "",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -186,7 +86,17 @@
       "name": "Ollama OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1250, -100]
+      "position": [1000, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { summary: $json.message.content, source: 'Powered by Ollama' } }];"
+      },
+      "id": "ollama_success",
+      "name": "Ollama Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, -150]
     },
     {
       "parameters": {
@@ -211,7 +121,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system: 'You are a homelab monitoring assistant. Analyze the health check data below and produce a concise daily report.\\n\\nFormat:\\n1. One-line overall status (e.g., \"All systems healthy\" or \"2 issues detected\")\\n2. Issues and warnings (if any), each with a brief explanation\\n3. Actionable recommendations (if any)\\n\\nFlag these conditions:\\n- Services returning non-2xx/3xx HTTP status\\n- Containers in unhealthy/restarting state or with restart count > 3\\n- K3s nodes in NotReady state\\n- Pods in CrashLoopBackOff, Pending, or Error state\\n- TLS certificates expiring within 14 days\\n- Disk usage above 80%\\n\\nKeep the report concise — this is a Discord message, not a document.\\nDo not repeat raw data. Summarize and explain.', messages: [{ role: 'user', content: JSON.stringify($('Merge All Data').first().json) }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system: 'You are a homelab monitoring assistant. Analyze the health check data below and produce a concise daily report.\\n\\nFormat:\\n1. One-line overall status (e.g., \"All systems healthy\" or \"2 issues detected\")\\n2. Issues and warnings (if any), each with a brief explanation\\n3. Actionable recommendations (if any)\\n\\nFlag these conditions:\\n- Services returning non-2xx/3xx HTTP status\\n- Containers in unhealthy/restarting state or with restart count > 3\\n- K3s nodes in NotReady state\\n- Pods in CrashLoopBackOff, Pending, or Error state\\n- TLS certificates expiring within 14 days\\n- Disk usage above 80%\\n\\nKeep the report concise — this is a Discord message, not a document.\\nDo not repeat raw data. Summarize and explain.', messages: [{ role: 'user', content: JSON.stringify($('Add Timestamp').first().json) }] }) }}",
         "options": {
           "timeout": 30000
         }
@@ -220,7 +130,7 @@
       "name": "Claude Fallback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1500, 100],
+      "position": [1250, 150],
       "credentials": {
         "httpHeaderAuth": {
           "id": "",
@@ -235,16 +145,16 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
               "id": "claude-check",
-              "leftValue": "={{ $json.content?.[0]?.text }}",
-              "rightValue": "",
+              "leftValue": "={{ $json.stop_reason }}",
+              "rightValue": "end_turn",
               "operator": {
                 "type": "string",
-                "operation": "isNotEmpty"
+                "operation": "equals"
               }
             }
           ],
@@ -255,27 +165,37 @@
       "name": "Claude OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1750, 100]
+      "position": [1500, 150]
     },
     {
       "parameters": {
-        "jsCode": "// Last resort: format raw data when both AI services fail\nconst data = $('Merge All Data').first().json;\nlet lines = ['**AI summarization unavailable — raw data below**\\n'];\n\n// Docker HTTP checks\nif (data.docker?.http_checks) {\n  lines.push('**Docker Services:**');\n  for (const svc of data.docker.http_checks) {\n    const icon = svc.healthy ? '✅' : '❌';\n    lines.push(`${icon} ${svc.service}: HTTP ${svc.status_code}`);\n  }\n  lines.push('');\n}\n\n// Disk\nif (data.docker?.disk) {\n  lines.push('**Disk Usage:**');\n  for (const d of data.docker.disk) {\n    lines.push(`${d.filesystem}: ${d.percent} used (${d.used}/${d.size})`);\n  }\n  lines.push('');\n}\n\n// K3s nodes\nif (data.k3s?.nodes) {\n  lines.push('**K3s Nodes:**');\n  for (const n of data.k3s.nodes) {\n    const icon = n.status === 'Ready' ? '✅' : '❌';\n    lines.push(`${icon} ${n.name}: ${n.status}`);\n  }\n  lines.push('');\n}\n\n// Unhealthy pods\nif (data.k3s?.unhealthy_pods?.length > 0) {\n  lines.push('**Unhealthy Pods:**');\n  for (const p of data.k3s.unhealthy_pods) {\n    lines.push(`❌ ${p.namespace}/${p.name}: ${p.phase}`);\n  }\n}\n\nreturn [{ json: { summary: lines.join('\\n'), source: 'raw' } }];"
+        "jsCode": "return [{ json: { summary: $json.content[0].text, source: 'Powered by Claude (Ollama was unreachable)' } }];"
+      },
+      "id": "claude_success",
+      "name": "Claude Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 50]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Last resort: format raw data when both AI services fail\nconst data = $('Add Timestamp').first().json;\nlet lines = ['**AI summarization unavailable — raw data below**\\n'];\n\nif (data.http_checks) {\n  lines.push('**Docker Services:**');\n  for (const svc of data.http_checks) {\n    const icon = svc.healthy ? '✅' : '❌';\n    lines.push(`${icon} ${svc.service}: HTTP ${svc.status_code}`);\n  }\n  lines.push('');\n}\n\nif (data.disk) {\n  lines.push('**Disk Usage:**');\n  for (const d of data.disk) {\n    lines.push(`${d.filesystem}: ${d.percent} used (${d.used}/${d.size})`);\n  }\n  lines.push('');\n}\n\nif (data.k3s?.nodes?.length > 0) {\n  lines.push('**K3s Nodes:**');\n  for (const n of data.k3s.nodes) {\n    const icon = n.status === 'Ready' ? '✅' : '❌';\n    lines.push(`${icon} ${n.name}: ${n.status}`);\n  }\n  lines.push('');\n}\n\nif (data.k3s?.unhealthy_pods?.length > 0) {\n  lines.push('**Unhealthy Pods:**');\n  for (const p of data.k3s.unhealthy_pods) {\n    lines.push(`❌ ${p.namespace}/${p.name}: ${p.phase}`);\n  }\n}\n\nreturn [{ json: { summary: lines.join('\\n'), source: 'AI unavailable — raw data' } }];"
       },
       "id": "format_raw",
       "name": "Format Raw Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [1750, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Build the Discord embed with color coding\nlet summary = '';\nlet source = '';\n\n// Determine which AI source provided the summary\ntry {\n  // Check Ollama path\n  const ollamaOutput = $('Ollama OK?').first().json;\n  if (ollamaOutput.message?.content) {\n    summary = ollamaOutput.message.content;\n    source = 'Powered by Ollama';\n  }\n} catch (e) {}\n\nif (!summary) {\n  try {\n    // Check Claude path\n    const claudeOutput = $('Claude OK?').first().json;\n    if (claudeOutput.content?.[0]?.text) {\n      summary = claudeOutput.content[0].text;\n      source = 'Powered by Claude (Ollama was unreachable)';\n    }\n  } catch (e) {}\n}\n\nif (!summary) {\n  try {\n    // Raw data path\n    const rawOutput = $('Format Raw Data').first().json;\n    summary = rawOutput.summary;\n    source = 'AI unavailable — raw data';\n  } catch (e) {\n    summary = 'Health report failed: could not collect or summarize data.';\n    source = 'Error';\n  }\n}\n\n// Determine embed color based on content\nlet color = 3066993; // green\nconst lowerSummary = summary.toLowerCase();\nif (lowerSummary.includes('critical') || lowerSummary.includes('down') || lowerSummary.includes('unreachable') || lowerSummary.includes('❌')) {\n  color = 15158332; // red #e74c3c\n} else if (lowerSummary.includes('warning') || lowerSummary.includes('issue') || lowerSummary.includes('expiring') || lowerSummary.includes('above 80')) {\n  color = 15844367; // yellow #f1c40f\n}\n\n// Truncate if over Discord's 4096 char embed limit\nif (summary.length > 4000) {\n  summary = summary.substring(0, 3997) + '...';\n}\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });\nconst timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });\n\nreturn [{\n  json: {\n    embeds: [{\n      title: `Homelab Daily Report — ${dateStr}`,\n      description: summary,\n      color: color,\n      footer: { text: `${source} | ${timeStr} ET` }\n    }]\n  }\n}];"
+        "jsCode": "// Build the Discord embed with color coding\nconst { summary, source } = $json;\n\nlet color = 3066993; // green\nconst lower = summary.toLowerCase();\nif (lower.includes('critical') || lower.includes('down') || lower.includes('unreachable') || lower.includes('❌')) {\n  color = 15158332; // red\n} else if (lower.includes('warning') || lower.includes('issue') || lower.includes('expiring') || lower.includes('above 80')) {\n  color = 15844367; // yellow\n}\n\nconst desc = summary.length > 4000 ? summary.substring(0, 3997) + '...' : summary;\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });\nconst timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });\n\nreturn [{\n  json: {\n    embeds: [{\n      title: `Homelab Daily Report — ${dateStr}`,\n      description: desc,\n      color,\n      footer: { text: `${source} | ${timeStr} ET` }\n    }]\n  }\n}];"
       },
       "id": "build_embed",
       "name": "Build Discord Embed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2250, 0]
+      "position": [2000, 0]
     },
     {
       "parameters": {
@@ -292,76 +212,25 @@
       "name": "Post to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2500, 0]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extract Ollama summary for the success path\nreturn [{ json: { message: { content: $json.message?.content || '' } } }];"
-      },
-      "id": "ollama_success",
-      "name": "Ollama Success",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1500, -300]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extract Claude summary for the success path\nreturn [{ json: { content: [{ text: $json.content?.[0]?.text || '' }] } }];"
-      },
-      "id": "claude_success",
-      "name": "Claude Success",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2000, 0]
+      "position": [2250, 0]
     }
   ],
   "connections": {
     "Daily 7AM Trigger": {
       "main": [
         [
-          { "node": "SSH Docker Health", "type": "main", "index": 0 },
-          { "node": "Read SA Token", "type": "main", "index": 0 }
+          { "node": "Collect Health Data", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Read SA Token": {
+    "Collect Health Data": {
       "main": [
         [
-          { "node": "K3s Get Nodes", "type": "main", "index": 0 },
-          { "node": "K3s Unhealthy Pods", "type": "main", "index": 0 },
-          { "node": "K3s TLS Certs", "type": "main", "index": 0 }
+          { "node": "Add Timestamp", "type": "main", "index": 0 }
         ]
       ]
     },
-    "SSH Docker Health": {
-      "main": [
-        [
-          { "node": "Merge All Data", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "K3s Get Nodes": {
-      "main": [
-        [
-          { "node": "Merge All Data", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "K3s Unhealthy Pods": {
-      "main": [
-        [
-          { "node": "Merge All Data", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "K3s TLS Certs": {
-      "main": [
-        [
-          { "node": "Merge All Data", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "Merge All Data": {
+    "Add Timestamp": {
       "main": [
         [
           { "node": "Ollama Summarize", "type": "main", "index": 0 }

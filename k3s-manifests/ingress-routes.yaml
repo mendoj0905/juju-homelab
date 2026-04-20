@@ -3,7 +3,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: openwebui
+  name: openwebui-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -25,7 +25,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: paperless
+  name: paperless-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -47,7 +47,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: paperless-ai
+  name: paperless-ai-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -69,7 +69,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: paperless-gpt
+  name: paperless-gpt-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -91,7 +91,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ollama
+  name: ollama-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -113,7 +113,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: open-notebook
+  name: open-notebook-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -142,7 +142,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: uptime-kuma
+  name: uptime-kuma-http
   namespace: uptime-kuma
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
@@ -314,11 +314,33 @@ spec:
                   number: 80
 
 ---
+# Homepage Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage-http
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: homepage.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homepage
+                port:
+                  number: 80
+
+---
 # Dozzle Ingress
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dozzle
+  name: dozzle-http
   namespace: docker-services
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web

@@ -1,0 +1,26 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/bookmarks
+
+- Developer:
+    - Github:
+        - abbr: GH
+          href: https://github.com/
+    - Homepage Docs:
+        - abbr: HD
+          href: https://gethomepage.dev/
+    - Claude:
+        - abbr: CL
+          href: https://claude.ai/
+
+
+- Entertainment:
+    - YouTube:
+        - abbr: YT
+          href: https://youtube.com/
+
+- Social:
+    - Reddit:
+        - abbr: RE
+          href: https://reddit.com/
+

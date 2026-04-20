@@ -446,25 +446,25 @@ subsets:
       - port: 8123
 
 ---
-# SSH Server Service & Endpoints
+# Health API Service & Endpoints
 apiVersion: v1
 kind: Service
 metadata:
-  name: ssh-server
+  name: health-api
   namespace: docker-services
 spec:
   ports:
-    - port: 22
-      targetPort: 2222
+    - port: 80
+      targetPort: 8096
       protocol: TCP
 ---
 apiVersion: v1
 kind: Endpoints
 metadata:
-  name: ssh-server
+  name: health-api
   namespace: docker-services
 subsets:
   - addresses:
       - ip: 100.123.171.3
     ports:
-      - port: 2222
+      - port: 8096

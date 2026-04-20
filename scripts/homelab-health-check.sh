@@ -69,10 +69,60 @@ while IFS= read -r line; do
   pct=$(echo "$line" | awk '{print $5}')
   if [ "$first" = true ]; then first=false; else disk+=","; fi
   disk+="{\"filesystem\":\"$fs\",\"size\":\"$size\",\"used\":\"$used\",\"available\":\"$avail\",\"percent\":\"$pct\"}"
-done < <(df -h / /mnt/synology --output=source,size,used,avail,pcent 2>/dev/null || df -h / --output=source,size,used,avail,pcent 2>/dev/null)
+done < <(df -h / /mnt/synology --output=source,size,used,avail,pcent 2>/dev/null || df -h / /mnt/synology 2>/dev/null || df -h / 2>/dev/null)
 disk+="]"
+
+# --- K3s Cluster Data ---
+k3s_nodes="[]"
+k3s_unhealthy_pods="[]"
+k3s_certs="[]"
+
+if command -v kubectl &>/dev/null && [ -f /root/.kube/config ]; then
+  export KUBECONFIG=/root/.kube/config
+
+  # Nodes
+  k3s_nodes="["
+  first=true
+  while IFS='|' read -r name status ip version; do
+    [ -z "$name" ] && continue
+    if [ "$first" = true ]; then first=false; else k3s_nodes+=","; fi
+    k3s_nodes+="{\"name\":\"$name\",\"status\":\"$status\",\"ip\":\"$ip\",\"version\":\"$version\"}"
+  done < <(kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}|{range .status.conditions[?(@.type=="Ready")]}{.status}{end}|{range .status.addresses[?(@.type=="InternalIP")]}{.address}{end}|{.status.nodeInfo.kubeletVersion}{"\n"}{end}' 2>/dev/null | sed 's/True/Ready/;s/False/NotReady/')
+  k3s_nodes+="]"
+
+  # Unhealthy pods
+  k3s_unhealthy_pods="["
+  first=true
+  while IFS='|' read -r ns name phase reason; do
+    [ -z "$name" ] && continue
+    reason=${reason:-unknown}
+    if [ "$first" = true ]; then first=false; else k3s_unhealthy_pods+=","; fi
+    k3s_unhealthy_pods+="{\"namespace\":\"$ns\",\"name\":\"$name\",\"phase\":\"$phase\",\"reason\":\"$reason\"}"
+  done < <(kubectl get pods --all-namespaces --field-selector='status.phase!=Running,status.phase!=Succeeded' -o jsonpath='{range .items[*]}{.metadata.namespace}|{.metadata.name}|{.status.phase}|{.status.reason}{"\n"}{end}' 2>/dev/null)
+  k3s_unhealthy_pods+="]"
+
+  # TLS certificates (cert-manager)
+  k3s_certs="["
+  first=true
+  now_epoch=$(date +%s)
+  while IFS='|' read -r ns name ready notafter; do
+    [ -z "$name" ] && continue
+    days=""
+    expiring_soon=false
+    if [ -n "$notafter" ]; then
+      cert_epoch=$(date -d "$notafter" +%s 2>/dev/null || echo "0")
+      if [ "$cert_epoch" != "0" ]; then
+        days=$(( (cert_epoch - now_epoch) / 86400 ))
+        if [ "$days" -le 14 ]; then expiring_soon=true; fi
+      fi
+    fi
+    if [ "$first" = true ]; then first=false; else k3s_certs+=","; fi
+    k3s_certs+="{\"namespace\":\"$ns\",\"name\":\"$name\",\"ready\":$ready,\"notAfter\":\"${notafter:-unknown}\",\"daysUntilExpiry\":${days:-null},\"expiringSoon\":$expiring_soon}"
+  done < <(kubectl get certificates --all-namespaces -o jsonpath='{range .items[*]}{.metadata.namespace}|{.metadata.name}|{range .status.conditions[?(@.type=="Ready")]}{.status}{end}|{.status.notAfter}{"\n"}{end}' 2>/dev/null | sed 's/|True|/|true|/;s/|False|/|false|/')
+  k3s_certs+="]"
+fi
 
 # --- Output ---
 cat <<EOF
-{"http_checks":$http_checks,"containers":$containers,"disk":$disk}
+{"http_checks":$http_checks,"containers":$containers,"disk":$disk,"k3s":{"nodes":$k3s_nodes,"unhealthy_pods":$k3s_unhealthy_pods,"certificates":$k3s_certs}}
 EOF
