@@ -182,48 +182,6 @@ services:
       - ollama
     restart: unless-stopped
 
-  # ---------------------------
-  # Open Notebook Database
-  # ---------------------------
-  surrealdb:
-    image: surrealdb/surrealdb:v2
-    container_name: surrealdb
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    command: start --user root --pass password --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./surrealdb/data:/mydata
-    restart: unless-stopped
-
-  # ---------------------------
-  # Open Notebook
-  # Research assistant with RAG
-  # ---------------------------
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest-single
-    container_name: open-notebook
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    pull_policy: always
-    ports:
-      - "8502:8502"  # Web UI
-      - "5055:5055"  # API
-    environment:
-      - OLLAMA_API_BASE=http://ollama:11434
-      - SURREAL_URL=ws://surrealdb:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
-      - API_URL=http://localhost:5055
-    volumes:
-      - ./open-notebook/data:/app/data
-    depends_on:
-      - surrealdb
-      - ollama
-    restart: unless-stopped
 
   # ---------------------------
   # Calibre Desktop
@@ -331,10 +289,9 @@ services:
   plex:
     image: plexinc/pms-docker:latest
     container_name: plex
+    network_mode: host
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    ports:
-      - "32400:32400"
     env_file:
       - ./plex/.env
     environment:
@@ -342,7 +299,8 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
     volumes:
       - ./plex/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
+      - /tmp/plex-transcode:/transcode
     deploy:
       resources:
         reservations:
@@ -367,7 +325,7 @@ services:
       - ./radarr/.env
     volumes:
       - ./radarr/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
     restart: unless-stopped
 
   # ---------------------------
@@ -385,7 +343,7 @@ services:
       - ./sonarr/.env
     volumes:
       - ./sonarr/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
     restart: unless-stopped
 
   # ---------------------------
@@ -420,7 +378,7 @@ services:
       - ./bazarr/.env
     volumes:
       - ./bazarr/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
     restart: unless-stopped
 
   # ---------------------------
@@ -438,7 +396,7 @@ services:
       - ./sabnzbd/.env
     volumes:
       - ./sabnzbd/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
     restart: unless-stopped
 
   # ---------------------------
@@ -456,7 +414,7 @@ services:
       - ./qbittorrent/.env
     volumes:
       - ./qbittorrent/data:/config
-      - /mnt/e/media:/media
+      - /mnt/media:/media
     restart: unless-stopped
 
   # ---------------------------
@@ -495,24 +453,6 @@ services:
       - WATCHTOWER_ROLLING_RESTART=true
       - WATCHTOWER_LABEL_ENABLE=true
       - DOCKER_API_VERSION=1.44
-
-  # ---------------------------
-  # Health API
-  # HTTP endpoint for n8n health checks
-  # ---------------------------
-  health-api:
-    build: ./health-api
-    container_name: health-api
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
-    ports:
-      - "8096:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./scripts:/scripts:ro
-      - ~/.kube/k3s-config:/root/.kube/config:ro
-    command: ["socat", "TCP-LISTEN:8080,reuseaddr,fork", "EXEC:/scripts/health-http-handler.sh"]
-    restart: unless-stopped
 
   # ---------------------------
   # Dozzle

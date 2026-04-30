@@ -138,40 +138,6 @@ spec:
                 port:
                   number: 80
 
----
-# Open Notebook Ingress with HTTPS
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: open-notebook
-  namespace: docker-services
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-    - hosts:
-        - notebook.justinmendoza.net
-      secretName: open-notebook-tls
-  rules:
-    - host: notebook.justinmendoza.net
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: open-notebook
-                port:
-                  number: 5055
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: open-notebook
-                port:
-                  number: 80
 
 ---
 # Ollama Ingress with HTTPS

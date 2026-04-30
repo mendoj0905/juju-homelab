@@ -108,34 +108,6 @@ spec:
                 port:
                   number: 80
 
----
-# Open Notebook Ingress
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: open-notebook-http
-  namespace: docker-services
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:
-  rules:
-    - host: notebook.justinmendoza.net
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: open-notebook
-                port:
-                  number: 5055
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: open-notebook
-                port:
-                  number: 80
 
 ---
 # Uptime Kuma Ingress
