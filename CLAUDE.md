@@ -40,8 +40,6 @@ GPU Host (Docker Compose)              K3s Cluster (Raspberry Pi 4)
 | Paperless-GPT | 8003 | LLM document tagging |
 | Open-WebUI | 3000 | Chat UI for Ollama |
 | Ollama API | 11434 | GPU-accelerated LLM runtime |
-| Open Notebook | 8502 | Research assistant with RAG |
-| SurrealDB | 8000 | Database for Open Notebook |
 | Calibre | 8084 | Ebook manager desktop |
 | Calibre-Web | 8083 | Ebook web UI |
 | Home Assistant | 8123 | Smart home automation |
