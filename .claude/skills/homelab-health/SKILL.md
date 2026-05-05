@@ -13,30 +13,29 @@ Run these curl checks sequentially. A 200 (or redirect) = healthy. Connection re
 
 ```bash
 echo "=== Docker Service Health ==="
-declare -A SERVICES=(
-  ["dozzle"]="http://localhost:8080"
-  ["paperless"]="http://localhost:8001/api/"
-  ["paperless-ai"]="http://localhost:8002"
-  ["paperless-gpt"]="http://localhost:8003"
-  ["open-webui"]="http://localhost:3000"
-  ["ollama"]="http://localhost:11434/api/tags"
-  ["open-notebook"]="http://localhost:8502"
-  ["surrealdb"]="http://localhost:8000/health"
-  ["calibre"]="http://localhost:8084"
-  ["calibre-web"]="http://localhost:8083"
-  ["homeassistant"]="http://localhost:8123"
-  ["zigbee2mqtt"]="http://localhost:8090"
-)
-
-for name in "${!SERVICES[@]}"; do
-  url="${SERVICES[$name]}"
+check() {
+  name="$1"; url="$2"
   code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" 2>/dev/null)
-  if [[ "$code" =~ ^[23] ]]; then
-    echo "  ✓ $name ($code)"
-  else
-    echo "  ✗ $name — HTTP $code (url: $url)"
-  fi
-done
+  if [[ "$code" =~ ^[23] ]]; then echo "  ✓ $name ($code)"; else echo "  ✗ $name — HTTP $code"; fi
+}
+check dozzle        "http://localhost:8080"
+check paperless     "http://localhost:8001/api/"
+check paperless-ai  "http://localhost:8002"
+check paperless-gpt "http://localhost:8003"
+check open-webui    "http://localhost:3000"
+check ollama        "http://localhost:11434/api/tags"
+check calibre       "http://localhost:8084"
+check calibre-web   "http://localhost:8083"
+check homeassistant "http://localhost:8123"
+check zigbee2mqtt   "http://localhost:8090"
+check homepage      "http://localhost:3001"
+check plex          "http://localhost:32400/web"
+check sonarr        "http://localhost:8989"
+check radarr        "http://localhost:7878"
+check prowlarr      "http://localhost:9696"
+check qbittorrent   "http://localhost:8081"
+check sabnzbd       "http://localhost:8082"
+check bazarr        "http://localhost:6767"
 ```
 
 Then check container state for any service that failed HTTP:

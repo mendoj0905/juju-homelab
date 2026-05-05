@@ -2,6 +2,7 @@
 **/.env
 .env
 *.env
+.env.cron
 !*.env.example
 
 # Ansible sensitive files
