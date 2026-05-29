@@ -40,6 +40,10 @@
         icon: uptime-kuma.png
         href: https://uptime.justinmendoza.net/
         description: Uptime Kuma Status Monitor
+    - Synology NAS: 
+        icon: synology.png
+        href: http://192.168.68.77:5000/
+        description: Juju Synology NAS
 - Book Management:
     - Calibre:
         icon: calibre.png
@@ -79,4 +83,8 @@
         icon: mdi-notebook-edit-outline
         href: https://opennotebook.justinmendoza.net/
         description: Open Notebook for AI Model Experiments
+    - Hermes:
+        icon: mdi-robot-outline
+        href: https://hermes.justinmendoza.net/
+        description: Hermes AI Agent Dashboard
 
