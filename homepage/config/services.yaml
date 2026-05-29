@@ -59,6 +59,10 @@
         href: https://homeassistant.justinmendoza.net/
         description: Home Automation Dashboard
 - AI:
+    - Hermes:
+        icon: mdi-robot-outline
+        href: https://hermes.justinmendoza.net/
+        description: Hermes AI Agent Dashboard
     - Open Web UI:
         icon: open-webui.svg
         href: https://openwebui.justinmendoza.net/
@@ -83,8 +87,4 @@
         icon: mdi-notebook-edit-outline
         href: https://opennotebook.justinmendoza.net/
         description: Open Notebook for AI Model Experiments
-    - Hermes:
-        icon: mdi-robot-outline
-        href: https://hermes.justinmendoza.net/
-        description: Hermes AI Agent Dashboard
 
