@@ -413,3 +413,27 @@ subsets:
       - ip: 192.168.68.85
     ports:
       - port: 8123
+
+---
+# Hermes Dashboard Service & Endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-dashboard
+  namespace: docker-services
+spec:
+  ports:
+    - port: 80
+      targetPort: 9119
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: hermes-dashboard
+  namespace: docker-services
+subsets:
+  - addresses:
+      - ip: 192.168.68.85
+    ports:
+      - port: 9119

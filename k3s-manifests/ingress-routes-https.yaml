@@ -502,3 +502,31 @@ spec:
                 name: homeassistant
                 port:
                   number: 80
+
+---
+# Hermes Dashboard Ingress with HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hermes-dashboard
+  namespace: docker-services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - hermes.justinmendoza.net
+      secretName: hermes-dashboard-tls
+  rules:
+    - host: hermes.justinmendoza.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hermes-dashboard
+                port:
+                  number: 80
