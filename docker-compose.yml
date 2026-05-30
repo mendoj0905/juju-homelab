@@ -134,6 +134,9 @@ services:
       # Optional: reduces surprises with file permissions on mounted shares
       - USERMAP_UID=1000
       - USERMAP_GID=1000
+      # NFSv4 ACL workaround: Synology blocks UID 1000 writes even on 777 dirs
+      # USER_IS_NON_ROOT skips s6-setuidgid drop so migrations run as root (UID 0 is allowed)
+      - USER_IS_NON_ROOT=true
     volumes:
       - /mnt/synology/paperless/data:/usr/src/paperless/data
       - /mnt/synology/paperless/media:/usr/src/paperless/media
