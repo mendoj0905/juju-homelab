@@ -1,0 +1,75 @@
+---
+# Alertmanager configuration — wired to Telegram (Franky bot)
+# Patches the alertmanager secret used by kube-prometheus-stack
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-monitoring-kube-prometheus-alertmanager
+  namespace: monitoring
+stringData:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+
+    inhibit_rules:
+      - equal: [namespace, alertname]
+        source_matchers: [severity = critical]
+        target_matchers: [severity =~ "warning|info"]
+      - equal: [namespace, alertname]
+        source_matchers: [severity = warning]
+        target_matchers: [severity = info]
+      - equal: [namespace]
+        source_matchers: [alertname = InfoInhibitor]
+        target_matchers: [severity = info]
+      - target_matchers: [alertname = InfoInhibitor]
+
+    receivers:
+      - name: "null"
+
+      - name: telegram-franky
+        telegram_configs:
+          - bot_token: "TELEGRAM_BOT_TOKEN_PLACEHOLDER"
+            chat_id: 8546674849
+            parse_mode: HTML
+            message: |-
+              {{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>THOUSAND SUNNY — {{ .Status | toUpper }}</b>
+              {{ range .Alerts }}
+              <b>{{ .Labels.alertname }}</b>
+              {{ if .Labels.severity }}Severity: <code>{{ .Labels.severity }}</code>{{ end }}
+              {{ if .Labels.namespace }}Namespace: <code>{{ .Labels.namespace }}</code>{{ end }}
+              {{ if .Labels.pod }}Pod: <code>{{ .Labels.pod }}</code>{{ end }}
+              {{ if .Labels.node }}Node: <code>{{ .Labels.node }}</code>{{ end }}
+              {{ if .Annotations.summary }}{{ .Annotations.summary }}{{ end }}
+              {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+              {{ if eq .Labels.severity "critical" }}
+              SUPER bad! Get on this NOW, Captain! 🔧
+              {{ else if eq .Labels.severity "warning" }}
+              Ship needs attention, Captain. I'm on it. 🛠️
+              {{ else }}
+              FYI from your chief engineer. 📡
+              {{ end }}
+              {{ end }}
+              {{ if eq .Status "resolved" }}
+              All clear! The Thousand Sunny is running SUPER again! ✨
+              {{ end }}
+
+    route:
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "null"
+      routes:
+        # Watchdog stays silenced — it's just a heartbeat
+        - matchers: [alertname = "Watchdog"]
+          receiver: "null"
+        # InfoInhibitor stays silenced
+        - matchers: [alertname = "InfoInhibitor"]
+          receiver: "null"
+        # All warning + critical go to Telegram
+        - matchers: [severity =~ "warning|critical"]
+          receiver: telegram-franky
+          continue: false
+
+    templates:
+      - /etc/alertmanager/config/*.tmpl
